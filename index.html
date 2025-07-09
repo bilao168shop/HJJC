@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>设备指纹检测工具</title>
+    <!-- 添加默认favicon避免404错误 -->
+    <link rel="icon" href="data:,">
     <script src="https://cdn.jsdelivr.net/npm/@fingerprintjs/fingerprintjs-pro@3/dist/fp.min.js"></script>
     <style>
         body {
@@ -88,6 +90,15 @@
         .retry-button:hover {
             background-color: #c0392b;
         }
+        /* 添加响应式设计 */
+        @media (max-width: 600px) {
+            .buttons {
+                flex-direction: column;
+            }
+            button {
+                width: 100%;
+            }
+        }
     </style>
 </head>
 <body>
@@ -110,10 +121,11 @@
     </div>
     
     <script>
-        // 初始化FingerprintJS - 使用默认端点
+        // 初始化FingerprintJS
         function initializeFingerprintJS() {
             return FingerprintJS.load({
-                token: 'k88Qqpi0mqB3GklSIlqg' // 请确保这是有效的API密钥
+                token: 'k88Qqpi0mqB3GklSIlqg', // 请替换为有效API密钥
+                endpoint: 'https://fp.yourdomain.com' // 可选: 如果您有自定义端点
             });
         }
         
@@ -127,36 +139,43 @@
             initializeFingerprintJS()
                 .then(fp => fp.get())
                 .then(result => {
+                    console.log('检测成功:', result);
                     document.getElementById('loading').style.display = 'none';
                     displayResults(result);
                     document.getElementById('resultContainer').style.display = 'block';
                     document.getElementById('copyButton').disabled = false;
                 })
                 .catch(error => {
-                    document.getElementById('loading').style.display = 'none';
-                    const errorMessage = document.getElementById('errorMessage');
-                    const errorText = document.getElementById('errorText');
-                    
-                    errorMessage.style.display = 'block';
-                    errorText.innerHTML = `
-                        <p><strong>检测失败:</strong> ${error.message}</p>
-                        <p><strong>可能原因:</strong></p>
-                        <ul>
-                            <li>API密钥无效或已过期</li>
-                            <li>网络连接问题</li>
-                            <li>浏览器隐私设置阻止了检测</li>
-                            <li>跨域资源共享(CORS)限制</li>
-                        </ul>
-                        <p><strong>解决方案:</strong></p>
-                        <ul>
-                            <li>检查网络连接</li>
-                            <li>禁用浏览器隐私扩展</li>
-                            <li>尝试在其他浏览器中打开</li>
-                            <li>联系管理员检查API密钥</li>
-                        </ul>
-                    `;
-                    console.error('指纹检测错误:', error);
+                    console.error('检测失败:', error);
+                    showError(error);
                 });
+        }
+        
+        // 显示错误信息
+        function showError(error) {
+            document.getElementById('loading').style.display = 'none';
+            const errorMessage = document.getElementById('errorMessage');
+            const errorText = document.getElementById('errorText');
+            
+            errorMessage.style.display = 'block';
+            errorText.innerHTML = `
+                <p><strong>检测失败:</strong> ${error.message || '未知错误'}</p>
+                <p><strong>可能原因:</strong></p>
+                <ul>
+                    <li>API密钥无效或已过期</li>
+                    <li>网络连接问题</li>
+                    <li>浏览器隐私设置阻止了检测</li>
+                    <li>跨域资源共享(CORS)限制</li>
+                </ul>
+                <p><strong>解决方案:</strong></p>
+                <ul>
+                    <li>检查网络连接</li>
+                    <li>禁用浏览器隐私扩展</li>
+                    <li>尝试在其他浏览器中打开</li>
+                    <li>联系管理员检查API密钥</li>
+                </ul>
+                <p><strong>错误详情:</strong> ${error.stack || '无堆栈信息'}</p>
+            `;
         }
         
         // 页面加载后自动开始检测
@@ -189,8 +208,23 @@
                     }, 2000);
                 })
                 .catch(err => {
-                    console.error('无法复制文本: ', err);
-                    alert('复制失败，请手动选择并复制内容');
+                    console.error('复制失败:', err);
+                    // 备用复制方法
+                    const textarea = document.createElement('textarea');
+                    textarea.value = originalContent;
+                    document.body.appendChild(textarea);
+                    textarea.select();
+                    try {
+                        document.execCommand('copy');
+                        const successMessage = document.getElementById('successMessage');
+                        successMessage.style.display = 'block';
+                        setTimeout(() => {
+                            successMessage.style.display = 'none';
+                        }, 2000);
+                    } catch (e) {
+                        alert('复制失败，请手动选择并复制内容');
+                    }
+                    document.body.removeChild(textarea);
                 });
         });
         
@@ -202,8 +236,13 @@
             
             // 中文映射表
             const chineseMap = {
+                'requestId': '请求ID',
                 'visitorId': '访客ID',
                 'confidence': '置信度',
+                'revision': '版本修订',
+                'score': '评分',
+                'meta': '元数据',
+                'version': '版本',
                 'visitorFound': '是否找到访客',
                 'firstSeenAt': '首次出现时间',
                 'lastSeenAt': '最后出现时间',
@@ -265,12 +304,10 @@
                         
                         if (typeof value === 'boolean') {
                             displayValue = value ? '是' : '否';
-                        } else if (key === 'confidence') {
+                        } else if (key === 'confidence' || key === 'score' || key === 'suspectScore' || key === 'botProbability') {
                             displayValue = (value * 100).toFixed(2) + '%';
                         } else if (key === 'firstSeenAt' || key === 'lastSeenAt') {
                             displayValue = new Date(value).toLocaleString();
-                        } else if (key === 'suspectScore' || key === 'botProbability') {
-                            displayValue = (value * 100).toFixed(2) + '%';
                         }
                         
                         html += '<div' + (isWarning ? ' class="warning"' : '') + '>' + displayValue + '</div>';
