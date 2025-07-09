@@ -368,6 +368,11 @@
                     <li>联系管理员检查API密钥</li>
                 </ul>`;
             
+            if (error.stack) {
+                details += `<p><strong>错误详情:</strong></p>
+                <pre>${error.stack}</pre>`;
+            }
+            
             errorDetails.innerHTML = details;
         }
         
@@ -422,7 +427,7 @@
                 });
         });
         
-        // 显示检测结果
+        // 显示检测结果 - 修复了undefined错误
         function displayResults(result) {
             // 保存结果用于复制功能
             window.fpResult = result;
@@ -435,12 +440,9 @@
                 'firstSeenAt': '首次出现时间',
                 'lastSeenAt': '最后出现时间',
                 'ip': 'IP地址',
-                'ipLocation': 'IP地理位置',
                 'os': '操作系统',
-                'osVersion': '操作系统版本',
                 'device': '设备类型',
                 'browser': '浏览器',
-                'browserVersion': '浏览器版本',
                 'timezone': '时区',
                 'screenResolution': '屏幕分辨率',
                 'incognito': '无痕模式',
@@ -461,6 +463,17 @@
                 'suspectScore', 'vm', 'vpn', 'proxy', 
                 'botProbability', 'incognito'
             ];
+            
+            // 安全访问对象属性
+            function safeGet(obj, path, defaultValue = '未知') {
+                return path.split('.').reduce((acc, key) => {
+                    try {
+                        return acc && acc[key] !== undefined ? acc[key] : defaultValue;
+                    } catch {
+                        return defaultValue;
+                    }
+                }, obj);
+            }
             
             // 格式化值
             function formatValue(key, value) {
@@ -508,33 +521,36 @@
             document.getElementById('securityInfo').innerHTML = '';
             
             // 填充身份信息
-            createInfoRow('visitorId', result.visitorId, 'identityInfo');
-            createInfoRow('requestId', result.requestId, 'identityInfo');
-            createInfoRow('confidence', result.confidence, 'identityInfo');
-            createInfoRow('visitorFound', result.visitorFound, 'identityInfo');
-            createInfoRow('firstSeenAt', result.firstSeenAt, 'identityInfo');
-            createInfoRow('lastSeenAt', result.lastSeenAt, 'identityInfo');
+            createInfoRow('visitorId', safeGet(result, 'visitorId', '未知'), 'identityInfo');
+            createInfoRow('requestId', safeGet(result, 'requestId', '未知'), 'identityInfo');
+            createInfoRow('confidence.score', safeGet(result, 'confidence.score', 0), 'identityInfo');
+            createInfoRow('visitorFound', safeGet(result, 'visitorFound', false), 'identityInfo');
+            createInfoRow('firstSeenAt', safeGet(result, 'firstSeenAt'), 'identityInfo');
+            createInfoRow('lastSeenAt', safeGet(result, 'lastSeenAt'), 'identityInfo');
             
             // 填充设备信息
-            createInfoRow('ip', result.ip, 'deviceInfo');
-            if (result.ipLocation) {
-                createInfoRow('ipLocation', 
-                    `${result.ipLocation.city || ''} ${result.ipLocation.country || ''}`, 
-                    'deviceInfo');
-            }
-            createInfoRow('os', `${result.os.name} ${result.os.version}`, 'deviceInfo');
-            createInfoRow('device', result.device, 'deviceInfo');
-            createInfoRow('browser', `${result.browser.name} ${result.browser.version}`, 'deviceInfo');
-            createInfoRow('timezone', result.timezone, 'deviceInfo');
-            createInfoRow('screenResolution', result.screenResolution, 'deviceInfo');
+            createInfoRow('ip', safeGet(result, 'ip', '未知'), 'deviceInfo');
+            
+            const osName = safeGet(result, 'os.name', '未知');
+            const osVersion = safeGet(result, 'os.version', '未知');
+            createInfoRow('os', `${osName} ${osVersion}`, 'deviceInfo');
+            
+            createInfoRow('device', safeGet(result, 'device', '未知'), 'deviceInfo');
+            
+            const browserName = safeGet(result, 'browser.name', '未知');
+            const browserVersion = safeGet(result, 'browser.version', '未知');
+            createInfoRow('browser', `${browserName} ${browserVersion}`, 'deviceInfo');
+            
+            createInfoRow('timezone', safeGet(result, 'timezone', '未知'), 'deviceInfo');
+            createInfoRow('screenResolution', safeGet(result, 'screenResolution', '未知'), 'deviceInfo');
             
             // 填充安全信息
-            createInfoRow('incognito', result.incognito, 'securityInfo', true);
-            createInfoRow('suspectScore', result.suspectScore, 'securityInfo', true);
-            createInfoRow('vm', result.vm, 'securityInfo', true);
-            createInfoRow('vpn', result.vpn, 'securityInfo', true);
-            createInfoRow('proxy', result.proxy, 'securityInfo', true);
-            createInfoRow('botProbability', result.botProbability, 'securityInfo', true);
+            createInfoRow('incognito', safeGet(result, 'incognito', false), 'securityInfo', true);
+            createInfoRow('suspectScore', safeGet(result, 'suspectScore', 0), 'securityInfo', true);
+            createInfoRow('vm', safeGet(result, 'vm', false), 'securityInfo', true);
+            createInfoRow('vpn', safeGet(result, 'vpn', false), 'securityInfo', true);
+            createInfoRow('proxy', safeGet(result, 'proxy', false), 'securityInfo', true);
+            createInfoRow('botProbability', safeGet(result, 'botProbability', 0), 'securityInfo', true);
         }
     </script>
 </body>
