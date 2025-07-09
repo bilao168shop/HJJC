@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Fingerprint Pro + Telegram Push</title>
+</head>
+<body>
+  <h2>Fingerprint Pro Device Check & Telegram Push</h2>
+  <pre id="output">正在检测中，请稍候...</pre>
+
+  <script>
+    const BOT_TOKEN = '7658247656:AAErdePgM1SQ5RhJBeIOQCdLyNhrsc6ZFAQ';
+    const CHAT_ID = '7305624337';
+    const outputEl = document.getElementById('output');
+
+    async function sendTelegramMessage(text) {
+      const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
+      const params = {
+        chat_id: CHAT_ID,
+        text: text,
+        parse_mode: 'Markdown'
+      };
+      try {
+        const resp = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(params),
+        });
+        if (!resp.ok) throw new Error('Telegram API 请求失败');
+        return await resp.json();
+      } catch (err) {
+        console.error('发送到 Telegram 失败:', err);
+        outputEl.textContent += '\n发送 Telegram 失败: ' + err.message;
+      }
+    }
+
+    async function runFingerprint() {
+      outputEl.textContent = '加载 Fingerprint Pro SDK...';
+      const FingerprintJS = await import('https://fpjscdn.net/v3/k88Qqpi0mqB3GklSIlqg');
+      const fp = await FingerprintJS.load();
+
+      outputEl.textContent = '开始检测设备指纹...';
+      const result = await fp.get();
+
+      const info = {
+        visitorId: result.visitorId,
+        userAgent: navigator.userAgent,
+        ip: result.ip ?? '未知',
+        confidenceScore: result.confidenceScore ?? '无',
+        suspectScore: result.suspectScore ?? '无',
+        rawResult: result
+      };
+
+      let msg = `📱 *设备指纹检测结果*\n`;
+      msg += `Visitor ID: \`${info.visitorId}\`\n`;
+      msg += `User Agent: \`${info.userAgent}\`\n`;
+      msg += `IP: \`${info.ip}\`\n`;
+      msg += `Confidence Score: \`${info.confidenceScore}\`\n`;
+      msg += `Suspect Score: \`${info.suspectScore}\`\n`;
+
+      outputEl.textContent = JSON.stringify(result, null, 2);
+      await sendTelegramMessage(msg);
+      outputEl.textContent += '\n\n结果已发送到 Telegram 机器人！';
+    }
+
+    runFingerprint();
+  </script>
+</body>
+</html>
