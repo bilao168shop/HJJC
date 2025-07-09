@@ -77,6 +77,16 @@
             color: #e74c3c;
             text-align: center;
             margin-top: 10px;
+            padding: 15px;
+            background-color: #fdecea;
+            border-radius: 4px;
+        }
+        .retry-button {
+            background-color: #e74c3c;
+            margin-top: 10px;
+        }
+        .retry-button:hover {
+            background-color: #c0392b;
         }
     </style>
 </head>
@@ -85,7 +95,7 @@
     
     <div class="buttons">
         <button id="assistButton">辅助检测</button>
-        <button id="copyButton">复制代码</button>
+        <button id="copyButton" disabled>复制代码</button>
     </div>
     
     <div id="loading" class="loading">正在检测设备指纹，请稍候...</div>
@@ -94,40 +104,66 @@
     
     <div id="successMessage" class="success-message">JSON已复制到剪贴板！</div>
     
-    <div id="errorMessage" class="error-message" style="display: none;"></div>
+    <div id="errorMessage" class="error-message" style="display: none;">
+        <p id="errorText"></p>
+        <button id="retryButton" class="retry-button">重试检测</button>
+    </div>
     
     <script>
         // 初始化FingerprintJS - 使用默认端点
-        const fpPromise = FingerprintJS.load({
-            token: 'k88Qqpi0mqB3GklSIlqg' // 请确保这是有效的API密钥
-        });
+        function initializeFingerprintJS() {
+            return FingerprintJS.load({
+                token: 'k88Qqpi0mqB3GklSIlqg' // 请确保这是有效的API密钥
+            });
+        }
         
-        // 页面加载后自动开始检测
-        document.addEventListener('DOMContentLoaded', function() {
-            fpPromise
+        // 执行检测
+        function performDetection() {
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('resultContainer').style.display = 'none';
+            document.getElementById('errorMessage').style.display = 'none';
+            document.getElementById('copyButton').disabled = true;
+            
+            initializeFingerprintJS()
                 .then(fp => fp.get())
                 .then(result => {
                     document.getElementById('loading').style.display = 'none';
                     displayResults(result);
                     document.getElementById('resultContainer').style.display = 'block';
+                    document.getElementById('copyButton').disabled = false;
                 })
                 .catch(error => {
                     document.getElementById('loading').style.display = 'none';
                     const errorMessage = document.getElementById('errorMessage');
+                    const errorText = document.getElementById('errorText');
+                    
                     errorMessage.style.display = 'block';
-                    errorMessage.innerHTML = `
-                        <p>检测失败: ${error.message}</p>
-                        <p>可能原因:</p>
+                    errorText.innerHTML = `
+                        <p><strong>检测失败:</strong> ${error.message}</p>
+                        <p><strong>可能原因:</strong></p>
                         <ul>
                             <li>API密钥无效或已过期</li>
                             <li>网络连接问题</li>
                             <li>浏览器隐私设置阻止了检测</li>
+                            <li>跨域资源共享(CORS)限制</li>
                         </ul>
-                        <p>请检查控制台获取更多信息</p>
+                        <p><strong>解决方案:</strong></p>
+                        <ul>
+                            <li>检查网络连接</li>
+                            <li>禁用浏览器隐私扩展</li>
+                            <li>尝试在其他浏览器中打开</li>
+                            <li>联系管理员检查API密钥</li>
+                        </ul>
                     `;
                     console.error('指纹检测错误:', error);
                 });
-        });
+        }
+        
+        // 页面加载后自动开始检测
+        document.addEventListener('DOMContentLoaded', performDetection);
+        
+        // 重试按钮点击事件
+        document.getElementById('retryButton').addEventListener('click', performDetection);
         
         // 辅助检测按钮点击事件
         document.getElementById('assistButton').addEventListener('click', function() {
