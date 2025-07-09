@@ -1,161 +1,227 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-  <meta charset="UTF-8" />
-  <title>设备指纹检测</title>
-  <script src="https://fpjscdn.net/v3/k88Qqpi0mqB3GklSIlqg?region=us"></script>
-  <style>
-    body {
-      font-family: "Microsoft YaHei", sans-serif;
-      padding: 20px;
-      background-color: #f5f5f5;
-      color: #333;
-    }
-    h1 {
-      font-size: 24px;
-      margin-bottom: 10px;
-    }
-    .highlight {
-      color: red;
-      font-weight: bold;
-    }
-    .entry {
-      margin: 5px 0;
-      padding: 5px 10px;
-      background: #fff;
-      border-left: 4px solid #ccc;
-    }
-    .entry.highlight {
-      border-left-color: red;
-      background-color: #ffeaea;
-    }
-    button {
-      margin: 10px 10px 10px 0;
-      padding: 8px 16px;
-      font-size: 16px;
-      border: none;
-      background-color: #2d8cf0;
-      color: white;
-      border-radius: 4px;
-      cursor: pointer;
-    }
-    button:hover {
-      background-color: #1a73e8;
-    }
-    pre {
-      white-space: pre-wrap;
-      word-break: break-word;
-      background: #fff;
-      padding: 10px;
-      border-radius: 4px;
-      max-height: 400px;
-      overflow: auto;
-      margin-top: 20px;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>设备指纹检测工具</title>
+    <script src="https://cdn.jsdelivr.net/npm/@fingerprintjs/fingerprintjs-pro@3/dist/fp.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+            color: #333;
+        }
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .buttons {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        #resultContainer {
+            background-color: #f9f9f9;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 20px;
+            margin-top: 20px;
+            font-family: 'Courier New', Courier, monospace;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        .warning {
+            color: #e74c3c;
+            font-weight: bold;
+        }
+        .loading {
+            text-align: center;
+            font-style: italic;
+            color: #7f8c8d;
+        }
+        .section {
+            margin-bottom: 15px;
+            padding-left: 10px;
+            border-left: 3px solid #3498db;
+        }
+        .section-title {
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: #2c3e50;
+        }
+        .success-message {
+            color: #27ae60;
+            text-align: center;
+            margin-top: 10px;
+            display: none;
+        }
+    </style>
 </head>
 <body>
-  <h1>设备指纹检测结果</h1>
-  <div id="results">正在检测中...</div>
-  <button onclick="window.open('https://iphey.com/#hardware', '_blank')">辅助检测</button>
-  <button onclick="copyResults()">复制代码</button>
-
-  <script>
-    async function runFingerprint() {
-      try {
-        const fp = await Fingerprint.load();
-        const result = await fp.get();
-        const data = result.products;
-
-        let fullData = JSON.stringify(data, null, 2); // 备用复制
-        let container = document.getElementById("results");
-        container.innerHTML = "";
-
-        function renderEntry(label, value, highlight = false) {
-          let div = document.createElement("div");
-          div.className = "entry" + (highlight ? " highlight" : "");
-          div.innerHTML = `<strong>${label}：</strong> ${value}`;
-          container.appendChild(div);
-        }
-
-        const explain = {
-          visitorId: "访客唯一识别码",
-          ip: "IP地址",
-          os: "操作系统",
-          osVersion: "系统版本",
-          browserName: "浏览器",
-          browserFullVersion: "浏览器版本",
-          device: "设备类型",
-          timezone: "时区",
-          confidence: "识别置信度",
-          proxy: "代理检测",
-          vpn: "VPN检测",
-          tor: "Tor检测",
-          tampering: "浏览器伪装",
-          incognito: "是否无痕模式",
-          virtualMachine: "是否虚拟机",
-          emulator: "是否模拟器",
-          rootApps: "是否Root环境",
-          suspectScore: "可疑评分",
-          highActivity: "高频行为",
-          developerTools: "开发者工具开启",
-          remoteControl: "远程控制检测",
-          locationSpoofing: "位置伪装"
-        };
-
-        // 核心字段显示
-        const id = data.identification?.data || {};
-        renderEntry(explain.visitorId, id.visitorId || "未知");
-        renderEntry(explain.ip, id.ip || "未知");
-        renderEntry(explain.browserName, id.browserDetails?.browserName);
-        renderEntry(explain.browserFullVersion, id.browserDetails?.browserFullVersion);
-        renderEntry(explain.os, id.browserDetails?.os);
-        renderEntry(explain.osVersion, id.browserDetails?.osVersion);
-        renderEntry(explain.device, id.browserDetails?.device);
-        renderEntry(explain.timezone, id.ipLocation?.timezone || "未知");
-
-        // 风控字段
-        const riskFields = [
-          {key: "proxy", value: data.proxy?.data?.result, name: explain.proxy},
-          {key: "vpn", value: data.vpn?.data?.result, name: explain.vpn},
-          {key: "tor", value: data.tor?.data?.result, name: explain.tor},
-          {key: "tampering", value: data.tampering?.data?.result, name: explain.tampering},
-          {key: "incognito", value: data.incognito?.data?.result, name: explain.incognito},
-          {key: "virtualMachine", value: data.virtualMachine?.data?.result, name: explain.virtualMachine},
-          {key: "emulator", value: data.emulator?.data?.result, name: explain.emulator},
-          {key: "rootApps", value: data.rootApps?.data?.result, name: explain.rootApps},
-          {key: "highActivity", value: data.highActivity?.data?.result, name: explain.highActivity},
-          {key: "developerTools", value: data.developerTools?.data?.result, name: explain.developerTools},
-          {key: "remoteControl", value: data.remoteControl?.data?.result, name: explain.remoteControl},
-          {key: "locationSpoofing", value: data.locationSpoofing?.data?.result, name: explain.locationSpoofing},
-        ];
-
-        riskFields.forEach(item => {
-          const isRisk = item.value === true;
-          renderEntry(item.name, isRisk ? "⚠️ 检测异常" : "正常", isRisk);
+    <h1>设备指纹检测工具</h1>
+    
+    <div class="buttons">
+        <button id="assistButton">辅助检测</button>
+        <button id="copyButton">复制代码</button>
+    </div>
+    
+    <div id="loading" class="loading">正在检测设备指纹，请稍候...</div>
+    
+    <div id="resultContainer" style="display: none;"></div>
+    
+    <div id="successMessage" class="success-message">JSON已复制到剪贴板！</div>
+    
+    <script>
+        // 初始化FingerprintJS
+        const fpPromise = FingerprintJS.load({
+            token: 'k88Qqpi0mqB3GklSIlqg', // 替换为您的实际API密钥
+            endpoint: 'https://metrics.yourdomain.com' // 可选，如果您有自定义端点
         });
-
-        // 显示 suspect 分数
-        const suspectScore = data.suspectScore?.data?.result ?? 0;
-        renderEntry(explain.suspectScore, suspectScore, suspectScore > 0);
-
-        // 保存完整数据供复制按钮使用
-        window._fp_full_result = fullData;
-
-      } catch (err) {
-        document.getElementById("results").innerText =
-          "检测失败，请稍后重试。\n错误：" + err.message;
-        console.error("Fingerprint error:", err);
-      }
-    }
-
-    function copyResults() {
-      navigator.clipboard.writeText(window._fp_full_result || "无数据").then(() => {
-        alert("检测结果已复制！");
-      });
-    }
-
-    runFingerprint();
-  </script>
+        
+        // 页面加载后自动开始检测
+        document.addEventListener('DOMContentLoaded', function() {
+            fpPromise
+                .then(fp => fp.get())
+                .then(result => {
+                    document.getElementById('loading').style.display = 'none';
+                    displayResults(result);
+                    document.getElementById('resultContainer').style.display = 'block';
+                })
+                .catch(error => {
+                    document.getElementById('loading').textContent = '检测失败: ' + error.message;
+                    console.error(error);
+                });
+        });
+        
+        // 辅助检测按钮点击事件
+        document.getElementById('assistButton').addEventListener('click', function() {
+            window.open('https://iphey.com/#hardware', '_blank');
+        });
+        
+        // 复制按钮点击事件
+        document.getElementById('copyButton').addEventListener('click', function() {
+            const resultContainer = document.getElementById('resultContainer');
+            const originalContent = resultContainer.getAttribute('data-original-json');
+            
+            navigator.clipboard.writeText(originalContent)
+                .then(() => {
+                    const successMessage = document.getElementById('successMessage');
+                    successMessage.style.display = 'block';
+                    setTimeout(() => {
+                        successMessage.style.display = 'none';
+                    }, 2000);
+                })
+                .catch(err => {
+                    console.error('无法复制文本: ', err);
+                });
+        });
+        
+        // 显示检测结果
+        function displayResults(result) {
+            const container = document.getElementById('resultContainer');
+            const originalJson = JSON.stringify(result, null, 2);
+            container.setAttribute('data-original-json', originalJson);
+            
+            // 中文映射表
+            const chineseMap = {
+                'visitorId': '访客ID',
+                'confidence': '置信度',
+                'visitorFound': '是否找到访客',
+                'firstSeenAt': '首次出现时间',
+                'lastSeenAt': '最后出现时间',
+                'ip': 'IP地址',
+                'ipLocation': 'IP地理位置',
+                'os': '操作系统',
+                'osVersion': '操作系统版本',
+                'device': '设备',
+                'browser': '浏览器',
+                'browserVersion': '浏览器版本',
+                'timezone': '时区',
+                'screenResolution': '屏幕分辨率',
+                'incognito': '无痕模式',
+                'languages': '语言设置',
+                'plugins': '浏览器插件',
+                'fonts': '系统字体',
+                'touchSupport': '触摸支持',
+                'audio': '音频指纹',
+                'canvas': 'Canvas指纹',
+                'webgl': 'WebGL指纹',
+                'suspectScore': '可疑分数',
+                'vm': '是否虚拟机',
+                'vpn': '是否VPN',
+                'tor': '是否Tor网络',
+                'proxy': '是否代理',
+                'emulator': '是否模拟器',
+                'cloned': '是否克隆设备',
+                'factoryReset': '是否恢复出厂设置',
+                'frida': '是否Frida框架',
+                'debugger': '是否调试模式',
+                'botProbability': '机器人概率'
+            };
+            
+            // 需要警告的字段
+            const warningFields = [
+                'suspectScore', 'vm', 'vpn', 'tor', 'proxy', 
+                'emulator', 'cloned', 'factoryReset', 'frida', 
+                'debugger', 'botProbability', 'incognito'
+            ];
+            
+            // 递归处理结果对象
+            function processObject(obj, depth = 0) {
+                let html = '';
+                
+                for (const key in obj) {
+                    const value = obj[key];
+                    const chineseKey = chineseMap[key] || key;
+                    const isWarning = warningFields.includes(key) && 
+                                    ((typeof value === 'number' && value > 0) || 
+                                     (typeof value === 'boolean' && value));
+                    
+                    html += '<div class="section" style="margin-left: ' + (depth * 15) + 'px">';
+                    html += '<div class="section-title' + (isWarning ? ' warning' : '') + '">' + chineseKey + ':</div>';
+                    
+                    if (typeof value === 'object' && value !== null) {
+                        html += processObject(value, depth + 1);
+                    } else {
+                        let displayValue = value;
+                        
+                        if (typeof value === 'boolean') {
+                            displayValue = value ? '是' : '否';
+                        } else if (key === 'confidence') {
+                            displayValue = (value * 100).toFixed(2) + '%';
+                        } else if (key === 'firstSeenAt' || key === 'lastSeenAt') {
+                            displayValue = new Date(value).toLocaleString();
+                        }
+                        
+                        html += '<div' + (isWarning ? ' class="warning"' : '') + '>' + displayValue + '</div>';
+                    }
+                    
+                    html += '</div>';
+                }
+                
+                return html;
+            }
+            
+            container.innerHTML = processObject(result);
+        }
+    </script>
 </body>
 </html>
