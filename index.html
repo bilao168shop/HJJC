@@ -1,52 +1,136 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>设备检测与硬件检测提示</title>
-  <style>
-    body { font-family: Arial, sans-serif; margin: 20px; }
-    pre { background: #f0f0f0; padding: 10px; overflow-x: auto; }
-    #iphey-section { margin-top: 30px; }
-    button { padding: 10px 20px; font-size: 16px; cursor: pointer; }
-  </style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Fingerprint 自动检测结果展示</title>
+<style>
+  body {
+    font-family: "Microsoft Yahei", Arial, sans-serif;
+    margin: 20px;
+    background: #fafafa;
+    color: #333;
+  }
+  h1 {
+    text-align: center;
+    margin-bottom: 25px;
+  }
+  #result {
+    background: white;
+    padding: 15px;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+    max-height: 70vh;
+    overflow: auto;
+    font-size: 14px;
+    line-height: 1.4em;
+  }
+  ul {
+    list-style-type: none;
+    padding-left: 18px;
+  }
+  li {
+    margin-bottom: 4px;
+  }
+  .key {
+    color: #0078d4;
+    font-weight: 600;
+  }
+  .value {
+    color: #555;
+  }
+  .buttons {
+    margin: 20px auto;
+    text-align: center;
+  }
+  button {
+    margin: 0 12px;
+    padding: 10px 20px;
+    font-size: 16px;
+    border-radius: 5px;
+    border: none;
+    cursor: pointer;
+    color: white;
+    background-color: #0078d4;
+    transition: background-color 0.3s;
+  }
+  button:hover {
+    background-color: #005a9e;
+  }
+  #copyStatus {
+    margin-top: 10px;
+    color: green;
+    font-weight: bold;
+  }
+</style>
 </head>
 <body>
 
-<h1>设备检测结果</h1>
-<div>
-  <pre id="fp-result">正在检测中，请稍候...</pre>
+<h1>Fingerprint 自动检测结果展示</h1>
+<div id="result">检测中，请稍候...</div>
+
+<div class="buttons">
+  <button id="btnAux">辅助检测</button>
+  <button id="btnCopy">复制源码</button>
+  <div id="copyStatus"></div>
 </div>
 
-<div id="iphey-section">
-  <h2>硬件检测提示</h2>
-  <p>由于无法自动抓取 <a href="https://iphey.com/#hardware" target="_blank" rel="noopener noreferrer">iphey.com 硬件检测</a> 结果，<br />
-    请点击下面按钮打开硬件检测页面，检测完成后自行查看结果。</p>
-  <button id="open-iphey">打开硬件检测页面</button>
-</div>
-
+<!-- 引入 Fingerprint.com 官方 JS SDK -->
+<script src="https://cdn.jsdelivr.net/npm/@fingerprintjs/fingerprintjs@4/dist/fp.min.js"></script>
 <script>
-  // 替换成你的 FingerprintJS 公钥
-  const fpPublicKey = 'k88Qqpi0mqB3GklSIlqg';
+  // 初始化 FingerprintJS
+  const API_KEY = 'k88Qqpi0mqB3GklSIlqg';
+  const fpPromise = FingerprintJS.load({apiKey: API_KEY});
 
-  async function runFingerprint() {
-    try {
-      const FingerprintJS = await import('https://fpjscdn.net/v3/' + fpPublicKey);
-      const fp = await FingerprintJS.load();
-      const result = await fp.get();
-
-      document.getElementById('fp-result').textContent = JSON.stringify(result, null, 2);
-    } catch (e) {
-      document.getElementById('fp-result').textContent = '检测失败: ' + e.message;
+  // 递归转换JSON为可视中文列表
+  function jsonToHtml(data) {
+    if (typeof data === 'object' && data !== null) {
+      let html = '<ul>';
+      for (const key in data) {
+        if (data.hasOwnProperty(key)) {
+          html += `<li><span class="key">${key}</span>: ${jsonToHtml(data[key])}</li>`;
+        }
+      }
+      html += '</ul>';
+      return html;
+    } else {
+      return `<span class="value">${data === null ? 'null' : data.toString()}</span>`;
     }
   }
 
-  document.getElementById('open-iphey').addEventListener('click', () => {
-    window.open('https://iphey.com/#hardware', '_blank');
-  });
+  // 加载指纹检测，展示结果
+  async function runFingerprint() {
+    try {
+      const fp = await fpPromise;
+      const result = await fp.get();
+
+      // FingerprintJS v4 的result里包含visitorId和components等信息
+      // 这里我们直接显示整个result对象的JSON结构，完整数据
+      const resultJson = JSON.stringify(result, null, 2);
+
+      // 显示为中文结构
+      document.getElementById('result').innerHTML = jsonToHtml(result);
+
+      // 绑定复制按钮内容
+      document.getElementById('btnCopy').onclick = () => {
+        navigator.clipboard.writeText(resultJson).then(() => {
+          const statusEl = document.getElementById('copyStatus');
+          statusEl.textContent = '检测源码已复制到剪贴板';
+          setTimeout(() => { statusEl.textContent = ''; }, 3000);
+        });
+      };
+
+      // 辅助检测按钮跳转
+      document.getElementById('btnAux').onclick = () => {
+        window.open('https://iphey.com/#hardware', '_blank');
+      };
+
+    } catch (error) {
+      document.getElementById('result').textContent = '检测失败，请稍后重试。错误：' + error;
+    }
+  }
 
   runFingerprint();
 </script>
-
 </body>
 </html>
