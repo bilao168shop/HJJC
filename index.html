@@ -4,136 +4,327 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>设备指纹检测工具</title>
-    <!-- 添加默认favicon避免404错误 -->
     <link rel="icon" href="data:,">
     <script src="https://cdn.jsdelivr.net/npm/@fingerprintjs/fingerprintjs-pro@3/dist/fp.min.js"></script>
     <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
         body {
-            font-family: Arial, sans-serif;
-            max-width: 1000px;
-            margin: 0 auto;
-            padding: 20px;
-            line-height: 1.6;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a2a6c, #b21f1f, #1a2a6c);
             color: #333;
-        }
-        h1 {
-            color: #2c3e50;
-            text-align: center;
-            margin-bottom: 30px;
-        }
-        .buttons {
-            display: flex;
-            justify-content: center;
-            gap: 20px;
-            margin-bottom: 20px;
-        }
-        button {
-            padding: 10px 20px;
-            background-color: #3498db;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 16px;
-            transition: background-color 0.3s;
-        }
-        button:hover {
-            background-color: #2980b9;
-        }
-        #resultContainer {
-            background-color: #f9f9f9;
-            border: 1px solid #ddd;
-            border-radius: 4px;
+            min-height: 100vh;
             padding: 20px;
-            margin-top: 20px;
-            font-family: 'Courier New', Courier, monospace;
-            white-space: pre-wrap;
-            word-wrap: break-word;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
         }
-        .warning {
-            color: #e74c3c;
-            font-weight: bold;
+        
+        .container {
+            max-width: 1000px;
+            width: 100%;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+            margin: 20px 0;
         }
+        
+        header {
+            background: linear-gradient(90deg, #2c3e50, #4a6491);
+            color: white;
+            padding: 25px;
+            text-align: center;
+            position: relative;
+        }
+        
+        h1 {
+            font-size: 2.2rem;
+            margin-bottom: 10px;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+        
+        .subtitle {
+            font-size: 1.1rem;
+            opacity: 0.9;
+            max-width: 700px;
+            margin: 0 auto;
+        }
+        
+        .controls {
+            padding: 20px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #e9ecef;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            justify-content: center;
+        }
+        
+        .btn {
+            padding: 12px 25px;
+            border: none;
+            border-radius: 50px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(90deg, #3498db, #2980b9);
+            color: white;
+            box-shadow: 0 4px 10px rgba(52, 152, 219, 0.3);
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 15px rgba(52, 152, 219, 0.4);
+        }
+        
+        .btn-secondary {
+            background: linear-gradient(90deg, #2ecc71, #27ae60);
+            color: white;
+            box-shadow: 0 4px 10px rgba(46, 204, 113, 0.3);
+        }
+        
+        .btn-secondary:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 15px rgba(46, 204, 113, 0.4);
+        }
+        
+        .btn-danger {
+            background: linear-gradient(90deg, #e74c3c, #c0392b);
+            color: white;
+            box-shadow: 0 4px 10px rgba(231, 76, 60, 0.3);
+        }
+        
+        .btn-danger:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 15px rgba(231, 76, 60, 0.4);
+        }
+        
+        .status-area {
+            padding: 25px;
+            text-align: center;
+        }
+        
         .loading {
-            text-align: center;
-            font-style: italic;
-            color: #7f8c8d;
-        }
-        .section {
-            margin-bottom: 15px;
-            padding-left: 10px;
-            border-left: 3px solid #3498db;
-        }
-        .section-title {
-            font-weight: bold;
-            margin-bottom: 5px;
+            font-size: 1.2rem;
             color: #2c3e50;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
         }
-        .success-message {
-            color: #27ae60;
-            text-align: center;
-            margin-top: 10px;
+        
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid rgba(52, 152, 219, 0.3);
+            border-top: 5px solid #3498db;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        #resultContainer {
+            padding: 0 20px 30px;
             display: none;
         }
-        .error-message {
+        
+        .result-section {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 25px;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.05);
+        }
+        
+        .section-title {
+            font-size: 1.3rem;
+            color: #2c3e50;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #3498db;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px 10px;
+            border-bottom: 1px solid #e9ecef;
+        }
+        
+        .info-row:last-child {
+            border-bottom: none;
+        }
+        
+        .info-label {
+            font-weight: 600;
+            color: #2c3e50;
+            flex: 1;
+        }
+        
+        .info-value {
+            flex: 2;
+            text-align: right;
+            font-family: 'Courier New', monospace;
+            font-weight: 500;
+        }
+        
+        .warning {
             color: #e74c3c;
-            text-align: center;
-            margin-top: 10px;
-            padding: 15px;
-            background-color: #fdecea;
+            font-weight: 700;
+            background: rgba(231, 76, 60, 0.1);
+            padding: 3px 8px;
             border-radius: 4px;
         }
-        .retry-button {
-            background-color: #e74c3c;
-            margin-top: 10px;
+        
+        .success-message, .error-message {
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px auto;
+            max-width: 90%;
+            text-align: center;
+            font-size: 1.1rem;
+            display: none;
         }
-        .retry-button:hover {
-            background-color: #c0392b;
+        
+        .success-message {
+            background: rgba(46, 204, 113, 0.15);
+            color: #27ae60;
+            border: 1px solid #2ecc71;
         }
-        /* 添加响应式设计 */
-        @media (max-width: 600px) {
-            .buttons {
-                flex-direction: column;
-            }
-            button {
+        
+        .error-message {
+            background: rgba(231, 76, 60, 0.15);
+            color: #c0392b;
+            border: 1px solid #e74c3c;
+        }
+        
+        .error-details {
+            background: white;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 15px;
+            text-align: left;
+            font-size: 0.9rem;
+            font-family: monospace;
+            overflow-x: auto;
+        }
+        
+        .footer {
+            text-align: center;
+            color: white;
+            padding: 20px;
+            font-size: 0.9rem;
+            opacity: 0.8;
+        }
+        
+        @media (max-width: 768px) {
+            .btn {
                 width: 100%;
+                justify-content: center;
+            }
+            
+            .info-row {
+                flex-direction: column;
+                gap: 5px;
+            }
+            
+            .info-value {
+                text-align: left;
             }
         }
     </style>
 </head>
 <body>
-    <h1>设备指纹检测工具</h1>
-    
-    <div class="buttons">
-        <button id="assistButton">辅助检测</button>
-        <button id="copyButton" disabled>复制代码</button>
+    <div class="container">
+        <header>
+            <h1>设备指纹检测工具</h1>
+            <p class="subtitle">全面检测设备信息，识别异常行为，确保您的在线安全</p>
+        </header>
+        
+        <div class="controls">
+            <button id="assistButton" class="btn btn-primary">
+                <i class="icon">🔍</i> 辅助检测
+            </button>
+            <button id="copyButton" class="btn btn-secondary" disabled>
+                <i class="icon">📋</i> 复制代码
+            </button>
+            <button id="retryButton" class="btn btn-danger">
+                <i class="icon">🔄</i> 重试检测
+            </button>
+        </div>
+        
+        <div id="statusArea" class="status-area">
+            <div id="loading" class="loading">
+                <div class="spinner"></div>
+                <p>正在检测设备指纹，请稍候...</p>
+            </div>
+            
+            <div id="resultContainer">
+                <div class="result-section">
+                    <h2 class="section-title"><i class="icon">🆔</i> 设备标识</h2>
+                    <div id="identityInfo"></div>
+                </div>
+                
+                <div class="result-section">
+                    <h2 class="section-title"><i class="icon">💻</i> 设备信息</h2>
+                    <div id="deviceInfo"></div>
+                </div>
+                
+                <div class="result-section">
+                    <h2 class="section-title"><i class="icon">⚠️</i> 安全检测</h2>
+                    <div id="securityInfo"></div>
+                </div>
+            </div>
+            
+            <div id="successMessage" class="success-message">
+                JSON数据已复制到剪贴板！
+            </div>
+            
+            <div id="errorMessage" class="error-message">
+                <p id="errorText"></p>
+                <div id="errorDetails" class="error-details"></div>
+            </div>
+        </div>
     </div>
     
-    <div id="loading" class="loading">正在检测设备指纹，请稍候...</div>
-    
-    <div id="resultContainer" style="display: none;"></div>
-    
-    <div id="successMessage" class="success-message">JSON已复制到剪贴板！</div>
-    
-    <div id="errorMessage" class="error-message" style="display: none;">
-        <p id="errorText"></p>
-        <button id="retryButton" class="retry-button">重试检测</button>
+    <div class="footer">
+        <p>© 2023 设备指纹检测工具 | 使用FingerprintJS Pro技术</p>
     </div>
     
     <script>
-        // 初始化FingerprintJS
+        // 初始化FingerprintJS - 使用默认端点
         function initializeFingerprintJS() {
             return FingerprintJS.load({
-                token: 'k88Qqpi0mqB3GklSIlqg', // 请替换为有效API密钥
-                endpoint: 'https://fp.yourdomain.com' // 可选: 如果您有自定义端点
+                token: 'k88Qqpi0mqB3GklSIlqg' // 确保这是有效的API密钥
             });
         }
         
         // 执行检测
         function performDetection() {
-            document.getElementById('loading').style.display = 'block';
+            // 重置UI状态
+            document.getElementById('loading').style.display = 'flex';
             document.getElementById('resultContainer').style.display = 'none';
             document.getElementById('errorMessage').style.display = 'none';
+            document.getElementById('successMessage').style.display = 'none';
             document.getElementById('copyButton').disabled = true;
             
             initializeFingerprintJS()
@@ -156,11 +347,13 @@
             document.getElementById('loading').style.display = 'none';
             const errorMessage = document.getElementById('errorMessage');
             const errorText = document.getElementById('errorText');
+            const errorDetails = document.getElementById('errorDetails');
             
             errorMessage.style.display = 'block';
-            errorText.innerHTML = `
-                <p><strong>检测失败:</strong> ${error.message || '未知错误'}</p>
-                <p><strong>可能原因:</strong></p>
+            errorText.innerHTML = `检测失败: ${error.message || '未知错误'}`;
+            
+            // 创建详细的错误信息
+            let details = `<p><strong>可能原因:</strong></p>
                 <ul>
                     <li>API密钥无效或已过期</li>
                     <li>网络连接问题</li>
@@ -173,9 +366,9 @@
                     <li>禁用浏览器隐私扩展</li>
                     <li>尝试在其他浏览器中打开</li>
                     <li>联系管理员检查API密钥</li>
-                </ul>
-                <p><strong>错误详情:</strong> ${error.stack || '无堆栈信息'}</p>
-            `;
+                </ul>`;
+            
+            errorDetails.innerHTML = details;
         }
         
         // 页面加载后自动开始检测
@@ -191,27 +384,28 @@
         
         // 复制按钮点击事件
         document.getElementById('copyButton').addEventListener('click', function() {
-            const resultContainer = document.getElementById('resultContainer');
-            const originalContent = resultContainer.getAttribute('data-original-json');
+            const result = window.fpResult;
             
-            if (!originalContent) {
+            if (!result) {
                 alert('没有可复制的检测结果');
                 return;
             }
             
-            navigator.clipboard.writeText(originalContent)
+            const originalJson = JSON.stringify(result, null, 2);
+            
+            navigator.clipboard.writeText(originalJson)
                 .then(() => {
                     const successMessage = document.getElementById('successMessage');
                     successMessage.style.display = 'block';
                     setTimeout(() => {
                         successMessage.style.display = 'none';
-                    }, 2000);
+                    }, 3000);
                 })
                 .catch(err => {
                     console.error('复制失败:', err);
                     // 备用复制方法
                     const textarea = document.createElement('textarea');
-                    textarea.value = originalContent;
+                    textarea.value = originalJson;
                     document.body.appendChild(textarea);
                     textarea.select();
                     try {
@@ -220,7 +414,7 @@
                         successMessage.style.display = 'block';
                         setTimeout(() => {
                             successMessage.style.display = 'none';
-                        }, 2000);
+                        }, 3000);
                     } catch (e) {
                         alert('复制失败，请手动选择并复制内容');
                     }
@@ -230,19 +424,13 @@
         
         // 显示检测结果
         function displayResults(result) {
-            const container = document.getElementById('resultContainer');
-            const originalJson = JSON.stringify(result, null, 2);
-            container.setAttribute('data-original-json', originalJson);
+            // 保存结果用于复制功能
+            window.fpResult = result;
             
             // 中文映射表
             const chineseMap = {
-                'requestId': '请求ID',
                 'visitorId': '访客ID',
                 'confidence': '置信度',
-                'revision': '版本修订',
-                'score': '评分',
-                'meta': '元数据',
-                'version': '版本',
                 'visitorFound': '是否找到访客',
                 'firstSeenAt': '首次出现时间',
                 'lastSeenAt': '最后出现时间',
@@ -250,76 +438,103 @@
                 'ipLocation': 'IP地理位置',
                 'os': '操作系统',
                 'osVersion': '操作系统版本',
-                'device': '设备',
+                'device': '设备类型',
                 'browser': '浏览器',
                 'browserVersion': '浏览器版本',
                 'timezone': '时区',
                 'screenResolution': '屏幕分辨率',
                 'incognito': '无痕模式',
-                'languages': '语言设置',
-                'plugins': '浏览器插件',
-                'fonts': '系统字体',
-                'touchSupport': '触摸支持',
-                'audio': '音频指纹',
-                'canvas': 'Canvas指纹',
-                'webgl': 'WebGL指纹',
                 'suspectScore': '可疑分数',
                 'vm': '是否虚拟机',
                 'vpn': '是否VPN',
-                'tor': '是否Tor网络',
                 'proxy': '是否代理',
-                'emulator': '是否模拟器',
-                'cloned': '是否克隆设备',
-                'factoryReset': '是否恢复出厂设置',
-                'frida': '是否Frida框架',
-                'debugger': '是否调试模式',
-                'botProbability': '机器人概率'
+                'botProbability': '机器人概率',
+                'requestId': '请求ID',
+                'revision': '版本修订',
+                'score': '评分',
+                'meta': '元数据',
+                'version': '版本'
             };
             
-            // 需要警告的字段
-            const warningFields = [
-                'suspectScore', 'vm', 'vpn', 'tor', 'proxy', 
-                'emulator', 'cloned', 'factoryReset', 'frida', 
-                'debugger', 'botProbability', 'incognito'
+            // 安全相关字段
+            const securityFields = [
+                'suspectScore', 'vm', 'vpn', 'proxy', 
+                'botProbability', 'incognito'
             ];
             
-            // 递归处理结果对象
-            function processObject(obj, depth = 0) {
-                let html = '';
-                
-                for (const key in obj) {
-                    const value = obj[key];
-                    const chineseKey = chineseMap[key] || key;
-                    const isWarning = warningFields.includes(key) && 
-                                    ((typeof value === 'number' && value > 0) || 
-                                     (typeof value === 'boolean' && value));
-                    
-                    html += '<div class="section" style="margin-left: ' + (depth * 15) + 'px">';
-                    html += '<div class="section-title' + (isWarning ? ' warning' : '') + '">' + chineseKey + ':</div>';
-                    
-                    if (typeof value === 'object' && value !== null) {
-                        html += processObject(value, depth + 1);
-                    } else {
-                        let displayValue = value;
-                        
-                        if (typeof value === 'boolean') {
-                            displayValue = value ? '是' : '否';
-                        } else if (key === 'confidence' || key === 'score' || key === 'suspectScore' || key === 'botProbability') {
-                            displayValue = (value * 100).toFixed(2) + '%';
-                        } else if (key === 'firstSeenAt' || key === 'lastSeenAt') {
-                            displayValue = new Date(value).toLocaleString();
-                        }
-                        
-                        html += '<div' + (isWarning ? ' class="warning"' : '') + '>' + displayValue + '</div>';
-                    }
-                    
-                    html += '</div>';
+            // 格式化值
+            function formatValue(key, value) {
+                if (typeof value === 'boolean') {
+                    return value ? '是' : '否';
+                } else if (key === 'confidence' || key === 'score' || key === 'suspectScore' || key === 'botProbability') {
+                    return (value * 100).toFixed(2) + '%';
+                } else if (key === 'firstSeenAt' || key === 'lastSeenAt') {
+                    return new Date(value).toLocaleString();
                 }
-                
-                return html;
+                return value;
             }
             
-            container.innerHTML = processObject(result);
+            // 创建信息行
+            function createInfoRow(key, value, containerId, isSecurity = false) {
+                const container = document.getElementById(containerId);
+                const row = document.createElement('div');
+                row.className = 'info-row';
+                
+                const label = document.createElement('div');
+                label.className = 'info-label';
+                label.textContent = chineseMap[key] || key;
+                
+                const val = document.createElement('div');
+                val.className = 'info-value';
+                
+                const formattedValue = formatValue(key, value);
+                
+                if (isSecurity && securityFields.includes(key) && 
+                    ((typeof value === 'number' && value > 0) || 
+                     (typeof value === 'boolean' && value))) {
+                    val.innerHTML = `<span class="warning">${formattedValue}</span>`;
+                } else {
+                    val.textContent = formattedValue;
+                }
+                
+                row.appendChild(label);
+                row.appendChild(val);
+                container.appendChild(row);
+            }
+            
+            // 清空容器
+            document.getElementById('identityInfo').innerHTML = '';
+            document.getElementById('deviceInfo').innerHTML = '';
+            document.getElementById('securityInfo').innerHTML = '';
+            
+            // 填充身份信息
+            createInfoRow('visitorId', result.visitorId, 'identityInfo');
+            createInfoRow('requestId', result.requestId, 'identityInfo');
+            createInfoRow('confidence', result.confidence, 'identityInfo');
+            createInfoRow('visitorFound', result.visitorFound, 'identityInfo');
+            createInfoRow('firstSeenAt', result.firstSeenAt, 'identityInfo');
+            createInfoRow('lastSeenAt', result.lastSeenAt, 'identityInfo');
+            
+            // 填充设备信息
+            createInfoRow('ip', result.ip, 'deviceInfo');
+            if (result.ipLocation) {
+                createInfoRow('ipLocation', 
+                    `${result.ipLocation.city || ''} ${result.ipLocation.country || ''}`, 
+                    'deviceInfo');
+            }
+            createInfoRow('os', `${result.os.name} ${result.os.version}`, 'deviceInfo');
+            createInfoRow('device', result.device, 'deviceInfo');
+            createInfoRow('browser', `${result.browser.name} ${result.browser.version}`, 'deviceInfo');
+            createInfoRow('timezone', result.timezone, 'deviceInfo');
+            createInfoRow('screenResolution', result.screenResolution, 'deviceInfo');
+            
+            // 填充安全信息
+            createInfoRow('incognito', result.incognito, 'securityInfo', true);
+            createInfoRow('suspectScore', result.suspectScore, 'securityInfo', true);
+            createInfoRow('vm', result.vm, 'securityInfo', true);
+            createInfoRow('vpn', result.vpn, 'securityInfo', true);
+            createInfoRow('proxy', result.proxy, 'securityInfo', true);
+            createInfoRow('botProbability', result.botProbability, 'securityInfo', true);
         }
     </script>
 </body>
