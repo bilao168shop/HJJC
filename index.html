@@ -1,66 +1,130 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
-  <meta charset="UTF-8" />
-  <title>Fingerprint Pro + Telegram Push</title>
+<meta charset="UTF-8" />
+<title>综合风控风险评分</title>
+<style>
+  body { font-family: "微软雅黑", Arial, sans-serif; background: #f7f9fc; padding: 20px; }
+  h2 { color: #333; }
+  .result { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 12px rgba(0,0,0,0.1); max-width: 600px; }
+  .field { margin-bottom: 10px; }
+  .label { font-weight: 700; color: #555; }
+  .value { margin-left: 6px; color: #111; }
+  .score { font-size: 28px; font-weight: 900; margin-top: 12px; }
+  .reason { margin-top: 12px; background: #fef3f3; padding: 12px; border-radius: 5px; color: #d93025; }
+</style>
 </head>
 <body>
-  <h2>Fingerprint Pro Device Check & Telegram Push</h2>
-  <pre id="output">正在检测中，请稍候...</pre>
+  <h2>设备综合风控检测结果</h2>
+  <div class="result" id="result">加载中...</div>
 
   <script>
-    const BOT_TOKEN = '7658247656:AAErdePgM1SQ5RhJBeIOQCdLyNhrsc6ZFAQ';
-    const CHAT_ID = '7305624337';
-    const outputEl = document.getElementById('output');
+    const apiKey = "k88Qqpi0mqB3GklSIlqg";
 
-    async function sendTelegramMessage(text) {
-      const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
-      const params = {
-        chat_id: CHAT_ID,
-        text: text,
-        parse_mode: 'Markdown'
-      };
-      try {
-        const resp = await fetch(url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(params),
-        });
-        if (!resp.ok) throw new Error('Telegram API 请求失败');
-        return await resp.json();
-      } catch (err) {
-        console.error('发送到 Telegram 失败:', err);
-        outputEl.textContent += '\n发送 Telegram 失败: ' + err.message;
+    // 简单评分规则示范
+    function calcRiskScore(data) {
+      let score = 0;
+      let reasons = [];
+
+      // VPN风险
+      if(data.products.vpn?.data?.result) {
+        score += 3;
+        reasons.push("检测到 VPN 使用，风险增加");
       }
+
+      // 开发者工具打开
+      if(data.products.developerTools?.data?.result) {
+        score += 2;
+        reasons.push("开发者工具处于开启状态");
+      }
+
+      // 虚拟机检测
+      if(data.products.virtualMachine?.data?.result) {
+        score += 3;
+        reasons.push("设备运行在虚拟机环境");
+      }
+
+      // 浏览器仿冒或防检测浏览器
+      if(data.products.tampering?.data?.antiDetectBrowser) {
+        score += 3;
+        reasons.push("检测到防检测或仿冒浏览器");
+      }
+
+      // 是否无痕模式
+      if(data.products.incognito?.data?.result) {
+        score += 1;
+        reasons.push("使用无痕模式");
+      }
+
+      // IP是否数据中心或代理
+      if(data.products.ipInfo?.data?.v4?.datacenter?.result) {
+        score += 4;
+        reasons.push("IP来自数据中心，风险较高");
+      }
+
+      // Cloned app(仿冒应用)检测
+      if(data.products.clonedApp?.data?.result) {
+        score += 4;
+        reasons.push("检测到克隆应用，存在风险");
+      }
+
+      // 可疑分数（suspectScore）
+      if(typeof data.products.suspectScore?.data?.result === 'number') {
+        score += data.products.suspectScore.data.result;
+        if(data.products.suspectScore.data.result > 0) {
+          reasons.push(`设备综合可疑分数为 ${data.products.suspectScore.data.result}`);
+        }
+      }
+
+      // 限制最大分数10
+      if(score > 10) score = 10;
+
+      return { score, reasons };
     }
 
     async function runFingerprint() {
-      outputEl.textContent = '加载 Fingerprint Pro SDK...';
-      const FingerprintJS = await import('https://fpjscdn.net/v3/k88Qqpi0mqB3GklSIlqg');
-      const fp = await FingerprintJS.load();
+      try {
+        // 加载 FingerprintJS 库并获取 visitorId
+        const FingerprintJS = await import("https://fpjscdn.net/v3/" + apiKey);
+        const fp = await FingerprintJS.load();
+        const result = await fp.get();
+        const visitorId = result.visitorId;
+        const requestId = result.requestId;
 
-      outputEl.textContent = '开始检测设备指纹...';
-      const result = await fp.get();
+        // 调用 Fingerprint Pro API 获取详细检测数据
+        const resp = await fetch(`https://eu.api.fpjs.io/events/${requestId}?api_key=${apiKey}`);
+        const data = await resp.json();
 
-      const info = {
-        visitorId: result.visitorId,
-        userAgent: navigator.userAgent,
-        ip: result.ip ?? '未知',
-        confidenceScore: result.confidenceScore ?? '无',
-        suspectScore: result.suspectScore ?? '无',
-        rawResult: result
-      };
+        // 计算风险评分
+        const { score, reasons } = calcRiskScore(data);
 
-      let msg = `📱 *设备指纹检测结果*\n`;
-      msg += `Visitor ID: \`${info.visitorId}\`\n`;
-      msg += `User Agent: \`${info.userAgent}\`\n`;
-      msg += `IP: \`${info.ip}\`\n`;
-      msg += `Confidence Score: \`${info.confidenceScore}\`\n`;
-      msg += `Suspect Score: \`${info.suspectScore}\`\n`;
+        // 页面展示信息
+        const ipData = data.products.ipInfo?.data?.v4 || {};
+        const vpn = data.products.vpn?.data || {};
+        const ua = data.products.identification?.data?.browserDetails?.userAgent || "N/A";
 
-      outputEl.textContent = JSON.stringify(result, null, 2);
-      await sendTelegramMessage(msg);
-      outputEl.textContent += '\n\n结果已发送到 Telegram 机器人！';
+        let html = `
+          <div class="field"><span class="label">Visitor ID:</span> <span class="value">${visitorId}</span></div>
+          <div class="field"><span class="label">IP:</span> <span class="value">${ipData.address || "未知"}</span></div>
+          <div class="field"><span class="label">位置:</span> <span class="value">${ipData.geolocation?.city?.name || "未知"}, ${ipData.geolocation?.country?.name || "未知"}</span></div>
+          <div class="field"><span class="label">ISP:</span> <span class="value">${ipData.asn?.name || "未知"}</span></div>
+          <div class="field"><span class="label">VPN:</span> <span class="value">${vpn.result ? "是" : "否"}</span></div>
+          <div class="field"><span class="label">浏览器 UA:</span> <span class="value">${ua}</span></div>
+          <div class="field score">综合风险评分：${score} / 10</div>
+        `;
+
+        if(reasons.length > 0) {
+          html += `<div class="reason"><strong>风险原因:</strong><ul>${reasons.map(r => `<li>${r}</li>`).join('')}</ul></div>`;
+        } else {
+          html += `<div class="reason" style="color:green;">无明显风险，设备可信度较高</div>`;
+        }
+
+        document.getElementById("result").innerHTML = html;
+
+      } catch(e) {
+        document.getElementById("result").innerHTML = "加载失败，请检查网络或 API Key 是否正确。";
+        console.error(e);
+      }
     }
 
     runFingerprint();
