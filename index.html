@@ -3,134 +3,111 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Fingerprint 自动检测结果展示</title>
+<title>发财</title>
 <style>
-  body {
-    font-family: "Microsoft Yahei", Arial, sans-serif;
-    margin: 20px;
-    background: #fafafa;
-    color: #333;
-  }
-  h1 {
-    text-align: center;
-    margin-bottom: 25px;
-  }
-  #result {
-    background: white;
-    padding: 15px;
-    border-radius: 6px;
-    border: 1px solid #ccc;
-    max-height: 70vh;
-    overflow: auto;
-    font-size: 14px;
-    line-height: 1.4em;
-  }
-  ul {
-    list-style-type: none;
-    padding-left: 18px;
-  }
-  li {
-    margin-bottom: 4px;
-  }
-  .key {
-    color: #0078d4;
-    font-weight: 600;
-  }
-  .value {
-    color: #555;
-  }
-  .buttons {
-    margin: 20px auto;
-    text-align: center;
-  }
-  button {
-    margin: 0 12px;
-    padding: 10px 20px;
-    font-size: 16px;
-    border-radius: 5px;
-    border: none;
-    cursor: pointer;
-    color: white;
-    background-color: #0078d4;
-    transition: background-color 0.3s;
-  }
-  button:hover {
-    background-color: #005a9e;
-  }
-  #copyStatus {
-    margin-top: 10px;
-    color: green;
-    font-weight: bold;
-  }
+  body { font-family: "Microsoft YaHei", Arial, sans-serif; background: #f9f9f9; padding: 20px; color: #333; }
+  h1 { text-align: center; color: #0078d7; }
+  ul { list-style-type: none; padding-left: 1em; }
+  li { margin: 4px 0; }
+  .key { font-weight: bold; color: #555; }
+  .value { color: #222; }
+  .highlight { background: #fff3cd; color: #856404; border-left: 4px solid #ffeeba; padding-left: 6px; }
+  .error { background: #f8d7da; color: #721c24; border-left: 4px solid #f5c6cb; padding-left: 6px; }
+  button { margin: 10px 10px 20px 0; padding: 8px 16px; font-size: 14px; cursor: pointer; border: none; border-radius: 4px; background: #0078d7; color: white; }
+  button:hover { background: #005ea2; }
+  pre { background: #eee; padding: 10px; border-radius: 6px; max-height: 300px; overflow-y: auto; }
 </style>
 </head>
 <body>
 
-<h1>Fingerprint 自动检测结果展示</h1>
-<div id="result">检测中，请稍候...</div>
+<h1>Fingerprint检测结果</h1>
+<div id="result"></div>
 
-<div class="buttons">
-  <button id="btnAux">辅助检测</button>
-  <button id="btnCopy">复制源码</button>
-  <div id="copyStatus"></div>
-</div>
+<button id="btn-link">查看Fingerprint后台</button>
+<button id="btn-copy">复制完整检测源码</button>
 
-<!-- 引入 Fingerprint.com 官方 JS SDK -->
-<script src="https://cdn.jsdelivr.net/npm/@fingerprintjs/fingerprintjs@4/dist/fp.min.js"></script>
 <script>
-  // 初始化 FingerprintJS
-  const API_KEY = 'k88Qqpi0mqB3GklSIlqg';
-  const fpPromise = FingerprintJS.load({apiKey: API_KEY});
+  // 这里示范的 mock 数据，替换成你 Fingerprint 后台返回的完整JSON
+  const mockData = {
+    products: {
+      identification: {
+        data: {
+          visitorId: "Rcnj0PWB87JLbcAKhg8e",
+          ip: "67.182.6.171",
+          ipLocation: {
+            city: { name: "Reedley" },
+            country: { name: "United States" },
+            subdivisions: [{ name: "California" }],
+          },
+          browserDetails: {
+            browserName: "Chrome",
+            browserFullVersion: "138.0.0",
+            os: "Windows",
+            osVersion: "11",
+          },
+          timestamp: 1752094510469,
+          suspectScore: { result: 6 },
+          vpn: { result: false },
+          proxy: { result: false },
+          botd: { data: { bot: { result: "notDetected" } } },
+          highActivity: { data: { result: true, dailyRequests: 5 } },
+        },
+      },
+    },
+  };
 
-  // 递归转换JSON为可视中文列表
-  function jsonToHtml(data) {
-    if (typeof data === 'object' && data !== null) {
-      let html = '<ul>';
-      for (const key in data) {
-        if (data.hasOwnProperty(key)) {
-          html += `<li><span class="key">${key}</span>: ${jsonToHtml(data[key])}</li>`;
-        }
-      }
-      html += '</ul>';
-      return html;
-    } else {
-      return `<span class="value">${data === null ? 'null' : data.toString()}</span>`;
-    }
+  // 字段中文释义字典
+  const fieldNameMap = {
+    visitorId: "访客ID",
+    ip: "IP地址",
+    ipLocation: "IP地理位置",
+    city: "城市",
+    country: "国家",
+    subdivisions: "省/州",
+    browserDetails: "浏览器详情",
+    browserName: "浏览器名称",
+    browserFullVersion: "浏览器版本",
+    os: "操作系统",
+    osVersion: "操作系统版本",
+    timestamp: "时间戳",
+    suspectScore: "风险评分",
+    result: "结果",
+    vpn: "VPN使用",
+    proxy: "代理使用",
+    botd: "机器人检测",
+    bot: "机器人状态",
+    highActivity: "高活跃度",
+    dailyRequests: "每日请求次数",
+  };
+
+  // 判断是否高风险或异常，给高亮class
+  function isHighlight(key, value) {
+    if (key === "vpn" && value?.result === true) return "highlight";
+    if (key === "proxy" && value?.result === true) return "highlight";
+    if (key === "suspectScore" && value?.result > 0) return "highlight";
+    if (key === "bot" && value?.result !== "notDetected") return "highlight";
+    if (key === "highActivity" && value?.result === true) return "highlight";
+    return "";
   }
 
-  // 加载指纹检测，展示结果
-  async function runFingerprint() {
-    try {
-      const fp = await fpPromise;
-      const result = await fp.get();
+  // 转成中文html，递归解析对象
+  function jsonToHtml(data, depth = 0) {
+    if (data === undefined) return '<span class="value">未定义</span>';
+    if (data === null) return '<span class="value">null</span>';
 
-      // FingerprintJS v4 的result里包含visitorId和components等信息
-      // 这里我们直接显示整个result对象的JSON结构，完整数据
-      const resultJson = JSON.stringify(result, null, 2);
-
-      // 显示为中文结构
-      document.getElementById('result').innerHTML = jsonToHtml(result);
-
-      // 绑定复制按钮内容
-      document.getElementById('btnCopy').onclick = () => {
-        navigator.clipboard.writeText(resultJson).then(() => {
-          const statusEl = document.getElementById('copyStatus');
-          statusEl.textContent = '检测源码已复制到剪贴板';
-          setTimeout(() => { statusEl.textContent = ''; }, 3000);
+    if (typeof data === "object") {
+      if (Array.isArray(data)) {
+        let html = "<ul>";
+        data.forEach((item, idx) => {
+          html += `<li><span class="key">[${idx}]</span>: ${jsonToHtml(item, depth + 1)}</li>`;
         });
-      };
+        html += "</ul>";
+        return html;
+      } else {
+        let html = "<ul>";
+        for (const key in data) {
+          if (data.hasOwnProperty(key)) {
+            const displayKey = fieldNameMap[key] || key;
+            const highlightClass = isHighlight(key, data[key]);
+            html += `<li class="${highlightClass}"><span class="key">${displayKey}</span>: ${jsonToHtml(data[key], depth + 1)}</li>`;
 
-      // 辅助检测按钮跳转
-      document.getElementById('btnAux').onclick = () => {
-        window.open('https://iphey.com/#hardware', '_blank');
-      };
-
-    } catch (error) {
-      document.getElementById('result').textContent = '检测失败，请稍后重试。错误：' + error;
-    }
-  }
-
-  runFingerprint();
-</script>
-</body>
-</html>
