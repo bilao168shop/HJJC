@@ -73,6 +73,11 @@
             margin-top: 10px;
             display: none;
         }
+        .error-message {
+            color: #e74c3c;
+            text-align: center;
+            margin-top: 10px;
+        }
     </style>
 </head>
 <body>
@@ -89,11 +94,12 @@
     
     <div id="successMessage" class="success-message">JSON已复制到剪贴板！</div>
     
+    <div id="errorMessage" class="error-message" style="display: none;"></div>
+    
     <script>
-        // 初始化FingerprintJS
+        // 初始化FingerprintJS - 使用默认端点
         const fpPromise = FingerprintJS.load({
-            token: 'k88Qqpi0mqB3GklSIlqg', // 替换为您的实际API密钥
-            endpoint: 'https://metrics.yourdomain.com' // 可选，如果您有自定义端点
+            token: 'k88Qqpi0mqB3GklSIlqg' // 请确保这是有效的API密钥
         });
         
         // 页面加载后自动开始检测
@@ -106,8 +112,20 @@
                     document.getElementById('resultContainer').style.display = 'block';
                 })
                 .catch(error => {
-                    document.getElementById('loading').textContent = '检测失败: ' + error.message;
-                    console.error(error);
+                    document.getElementById('loading').style.display = 'none';
+                    const errorMessage = document.getElementById('errorMessage');
+                    errorMessage.style.display = 'block';
+                    errorMessage.innerHTML = `
+                        <p>检测失败: ${error.message}</p>
+                        <p>可能原因:</p>
+                        <ul>
+                            <li>API密钥无效或已过期</li>
+                            <li>网络连接问题</li>
+                            <li>浏览器隐私设置阻止了检测</li>
+                        </ul>
+                        <p>请检查控制台获取更多信息</p>
+                    `;
+                    console.error('指纹检测错误:', error);
                 });
         });
         
@@ -121,6 +139,11 @@
             const resultContainer = document.getElementById('resultContainer');
             const originalContent = resultContainer.getAttribute('data-original-json');
             
+            if (!originalContent) {
+                alert('没有可复制的检测结果');
+                return;
+            }
+            
             navigator.clipboard.writeText(originalContent)
                 .then(() => {
                     const successMessage = document.getElementById('successMessage');
@@ -131,6 +154,7 @@
                 })
                 .catch(err => {
                     console.error('无法复制文本: ', err);
+                    alert('复制失败，请手动选择并复制内容');
                 });
         });
         
@@ -209,6 +233,8 @@
                             displayValue = (value * 100).toFixed(2) + '%';
                         } else if (key === 'firstSeenAt' || key === 'lastSeenAt') {
                             displayValue = new Date(value).toLocaleString();
+                        } else if (key === 'suspectScore' || key === 'botProbability') {
+                            displayValue = (value * 100).toFixed(2) + '%';
                         }
                         
                         html += '<div' + (isWarning ? ' class="warning"' : '') + '>' + displayValue + '</div>';
