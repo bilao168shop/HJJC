@@ -290,6 +290,11 @@
                 </div>
                 
                 <div class="result-section">
+                    <h2 class="section-title"><i class="icon">🌍</i> 地理位置</h2>
+                    <div id="locationInfo"></div>
+                </div>
+                
+                <div class="result-section">
                     <h2 class="section-title"><i class="icon">⚠️</i> 安全检测</h2>
                     <div id="securityInfo"></div>
                 </div>
@@ -314,7 +319,8 @@
         // 初始化FingerprintJS - 使用默认端点
         function initializeFingerprintJS() {
             return FingerprintJS.load({
-                token: 'k88Qqpi0mqB3GklSIlqg' // 确保这是有效的API密钥
+                token: 'k88Qqpi0mqB3GklSIlqg',
+                extendedResult: true // 获取完整扩展结果
             });
         }
         
@@ -330,7 +336,7 @@
             initializeFingerprintJS()
                 .then(fp => fp.get())
                 .then(result => {
-                    console.log('检测成功:', result);
+                    console.log('完整检测结果:', result);
                     document.getElementById('loading').style.display = 'none';
                     displayResults(result);
                     document.getElementById('resultContainer').style.display = 'block';
@@ -427,7 +433,7 @@
                 });
         });
         
-        // 显示检测结果 - 修复了undefined错误
+        // 显示检测结果 - 修复数据获取问题
         function displayResults(result) {
             // 保存结果用于复制功能
             window.fpResult = result;
@@ -435,6 +441,7 @@
             // 中文映射表
             const chineseMap = {
                 'visitorId': '访客ID',
+                'requestId': '请求ID',
                 'confidence': '置信度',
                 'visitorFound': '是否找到访客',
                 'firstSeenAt': '首次出现时间',
@@ -451,11 +458,11 @@
                 'vpn': '是否VPN',
                 'proxy': '是否代理',
                 'botProbability': '机器人概率',
-                'requestId': '请求ID',
-                'revision': '版本修订',
-                'score': '评分',
-                'meta': '元数据',
-                'version': '版本'
+                'country': '国家',
+                'city': '城市',
+                'postalCode': '邮政编码',
+                'coordinates': '坐标',
+                'accuracyRadius': '精度半径'
             };
             
             // 安全相关字段
@@ -483,6 +490,8 @@
                     return (value * 100).toFixed(2) + '%';
                 } else if (key === 'firstSeenAt' || key === 'lastSeenAt') {
                     return new Date(value).toLocaleString();
+                } else if (key === 'coordinates') {
+                    return `${value.latitude}° N, ${value.longitude}° W`;
                 }
                 return value;
             }
@@ -518,37 +527,50 @@
             // 清空容器
             document.getElementById('identityInfo').innerHTML = '';
             document.getElementById('deviceInfo').innerHTML = '';
+            document.getElementById('locationInfo').innerHTML = '';
             document.getElementById('securityInfo').innerHTML = '';
+            
+            // 提取浏览器详情
+            const browserDetails = safeGet(result, 'browserDetails', {});
             
             // 填充身份信息
             createInfoRow('visitorId', safeGet(result, 'visitorId', '未知'), 'identityInfo');
             createInfoRow('requestId', safeGet(result, 'requestId', '未知'), 'identityInfo');
-            createInfoRow('confidence.score', safeGet(result, 'confidence.score', 0), 'identityInfo');
+            createInfoRow('confidence', safeGet(result, 'confidence.score', 1), 'identityInfo');
             createInfoRow('visitorFound', safeGet(result, 'visitorFound', false), 'identityInfo');
-            createInfoRow('firstSeenAt', safeGet(result, 'firstSeenAt'), 'identityInfo');
-            createInfoRow('lastSeenAt', safeGet(result, 'lastSeenAt'), 'identityInfo');
+            
+            // 修复时间格式
+            const firstSeenGlobal = safeGet(result, 'firstSeenAt.global');
+            createInfoRow('firstSeenAt', firstSeenGlobal ? new Date(firstSeenGlobal).toLocaleString() : '未知', 'identityInfo');
+            
+            const lastSeenGlobal = safeGet(result, 'lastSeenAt.global');
+            createInfoRow('lastSeenAt', lastSeenGlobal ? new Date(lastSeenGlobal).toLocaleString() : '未知', 'identityInfo');
             
             // 填充设备信息
             createInfoRow('ip', safeGet(result, 'ip', '未知'), 'deviceInfo');
-            
-            const osName = safeGet(result, 'os.name', '未知');
-            const osVersion = safeGet(result, 'os.version', '未知');
-            createInfoRow('os', `${osName} ${osVersion}`, 'deviceInfo');
-            
-            createInfoRow('device', safeGet(result, 'device', '未知'), 'deviceInfo');
-            
-            const browserName = safeGet(result, 'browser.name', '未知');
-            const browserVersion = safeGet(result, 'browser.version', '未知');
-            createInfoRow('browser', `${browserName} ${browserVersion}`, 'deviceInfo');
-            
-            createInfoRow('timezone', safeGet(result, 'timezone', '未知'), 'deviceInfo');
+            createInfoRow('os', `${safeGet(browserDetails, 'os', '未知')} ${safeGet(browserDetails, 'osVersion', '')}`, 'deviceInfo');
+            createInfoRow('device', safeGet(browserDetails, 'device', '未知'), 'deviceInfo');
+            createInfoRow('browser', `${safeGet(browserDetails, 'browserName', '未知')} ${safeGet(browserDetails, 'browserFullVersion', '')}`, 'deviceInfo');
+            createInfoRow('timezone', safeGet(result, 'ipInfo.data.v4.geolocation.timezone', '未知'), 'deviceInfo');
             createInfoRow('screenResolution', safeGet(result, 'screenResolution', '未知'), 'deviceInfo');
             
+            // 填充位置信息
+            const geolocation = safeGet(result, 'ipInfo.data.v4.geolocation', {});
+            createInfoRow('country', safeGet(geolocation, 'country.name', '未知'), 'locationInfo');
+            createInfoRow('city', safeGet(geolocation, 'city.name', '未知'), 'locationInfo');
+            createInfoRow('postalCode', safeGet(geolocation, 'postalCode', '未知'), 'locationInfo');
+            createInfoRow('coordinates', {
+                latitude: safeGet(geolocation, 'latitude', '未知'),
+                longitude: safeGet(geolocation, 'longitude', '未知')
+            }, 'locationInfo');
+            createInfoRow('accuracyRadius', `${safeGet(geolocation, 'accuracyRadius', '未知')} km`, 'locationInfo');
+            createInfoRow('subdivisions', safeGet(geolocation, 'subdivisions[0].name', '未知'), 'locationInfo');
+            
             // 填充安全信息
-            createInfoRow('incognito', safeGet(result, 'incognito', false), 'securityInfo', true);
-            createInfoRow('suspectScore', safeGet(result, 'suspectScore', 0), 'securityInfo', true);
-            createInfoRow('vm', safeGet(result, 'vm', false), 'securityInfo', true);
-            createInfoRow('vpn', safeGet(result, 'vpn', false), 'securityInfo', true);
+            createInfoRow('incognito', safeGet(result, 'incognito.data.result', false), 'securityInfo', true);
+            createInfoRow('suspectScore', safeGet(result, 'suspectScore.data.result', 0), 'securityInfo', true);
+            createInfoRow('vm', safeGet(result, 'virtualMachine.data.result', false), 'securityInfo', true);
+            createInfoRow('vpn', safeGet(result, 'vpn.data.result', false), 'securityInfo', true);
             createInfoRow('proxy', safeGet(result, 'proxy', false), 'securityInfo', true);
             createInfoRow('botProbability', safeGet(result, 'botProbability', 0), 'securityInfo', true);
         }
